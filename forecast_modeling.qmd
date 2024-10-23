@@ -1,0 +1,180 @@
+---
+title: "Forecast Modeling Verizon Wireless"
+author: "Lee, Ndur, Carmichael, and Schuma"
+format: html
+editor: visual
+---
+
+# Introduction and Company Overview
+
+Verizon streamlined to national success after the merger between two large telecommunications companies of Bell Atlantic Corp. And GTE Corp. Verizon is utilized by more than 100 million Americans accounting for roughly a third of the nation. The focus of the company is to provide internet and phone connections through its expansive network. Team 1 will focus on the Revenue of Verizon in conjunction with potential levels of increase in subscriber shares through forecasting. Also, we will visualize revenue from Verizon through segmentation from 2012-2023. Additionally, we will highlight the unique correlation between iPhone releases and revenue spikes. \# Data and Key Insights \## Data Sources Team 1 used statista to determine the market share of wireless carriers by subscriptions, consolidated revenue by quarter, and retail churn rate by quarter. From statista we gathered the quarterly data on overall revenue, churn rate, and subscriber share of total phone-users from 2010-2023.
+
+## Initial Glance and Data Wrangling
+
+```{r, include = FALSE}
+library(readr)
+library(gt)
+library(tidyverse)
+library(fpp3)
+library(ggthemes)
+library(forecast)
+```
+
+```{r}
+#Load in our datasets and subset (for later) 
+verizon <- read_csv("C:/Users/relee/OneDrive/Desktop/MSBAData/verizon.csv")
+revenue <- verizon[, c("YearQuarter", "revenue")]
+churn <- verizon[, c("YearQuarter", "churn_rate")]
+sub_share <- verizon[, c("YearQuarter", "sub_share")]
+
+#Create tsibbles based on our YearQuarter function
+verizon_ts <- verizon %>%
+  mutate(Date = yearquarter(YearQuarter)) %>%
+  select(Date, revenue, sub_share) %>%
+  as_tsibble(index = Date)
+revenue_ts <- revenue %>% 
+  mutate(YearQuarter=yearquarter(YearQuarter)) %>%
+  as_tsibble(index=YearQuarter) %>% 
+  mutate(Quarter = factor(quarter(YearQuarter)))
+churn_ts <- churn %>%
+    mutate(YearQuarter=yearquarter(YearQuarter)) %>%
+  as_tsibble(index=YearQuarter) %>% 
+  mutate(Quarter = factor(quarter(YearQuarter)))
+sub_ts <- sub_share %>%
+    mutate(YearQuarter=yearquarter(YearQuarter)) %>%
+  as_tsibble(index=YearQuarter) %>% 
+  mutate(Quarter = factor(quarter(YearQuarter)))
+```
+
+# Descriptive Statistics
+
+## Variable Analysis
+
+```{r, echo = FALSE}
+calculate_mode <- function(x) {
+  uniqx <- unique(x)
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+
+# Mean, Median, Mode for Revenue
+mean_revenue <- mean(verizon$revenue, na.rm = TRUE)
+median_revenue <- median(verizon$revenue, na.rm = TRUE)
+mode_revenue <- calculate_mode(verizon$revenue)
+
+# Mean, Median, Mode for Churn Rate
+mean_churn <- mean(verizon$churn_rate, na.rm = TRUE)
+median_churn <- median(verizon$churn_rate, na.rm = TRUE)
+mode_churn <- calculate_mode(verizon$churn_rate)
+
+# Mean, Median, Mode for Subscription Share
+mean_sub_share <- mean(verizon$sub_share, na.rm = TRUE)
+median_sub_share <- median(verizon$sub_share, na.rm = TRUE)
+mode_sub_share <- calculate_mode(verizon$sub_share)
+
+# Create a data frame to store the results
+stats_df <- data.frame(
+  Metric = c("Revenue", "Churn Rate", "Subscription Share"),
+  Mean = c(mean_revenue, mean_churn, mean_sub_share),
+  Median = c(median_revenue, median_churn, median_sub_share),
+  Mode = c(mode_revenue, mode_churn, mode_sub_share)
+)
+
+# Display the results in an aesthetic table using gt
+gt_table <- stats_df %>%
+  gt() %>%
+  tab_header(
+    title = "Summary Statistics for Verizon Data",
+    subtitle = "Mean, Median, and Mode for Key Metrics"
+  ) %>%
+  fmt_number(
+    columns = c(Mean, Median, Mode),
+    decimals = 2
+  ) %>%
+  cols_label(
+    Metric = "Metric",
+    Mean = "Mean",
+    Median = "Median",
+    Mode = "Mode"
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")
+    ),
+    locations = cells_column_labels(everything())
+  )
+
+# Print the table
+gt_table
+```
+
+## Revenue over Time
+
+```{r, echo = FALSE}
+#Plot revenue over time
+verizon_ts %>% autoplot(revenue, color = "darkblue", size = 1) + 
+  theme_clean() + xlab("2010-2023 Quarters") + ylab("Verizon Wireless Revenue (in billions)") + ggtitle("Revenue over Time") + geom_smooth(linetype = "dashed", color = "blue", size = .7)
+```
+
+# Subscriber Share
+
+```{r, echo = FALSE}
+sub_ts %>% autoplot(sub_share, color = "magenta", size = 1) + 
+  theme_clean() + xlab("2010-2023 Quarters") + 
+  ylab("Percent of Phone Users") + ggtitle("Subscriber Share over Time") +
+  geom_smooth(linetype = "dashed", color = "red", size = .7) + 
+annotate("text", x = as.Date("2012-09-21"), y = 35, label = "iPhone 5", size = 3, vjust = -1, color = "blue") +
+  annotate("text", x = as.Date("2014-09-20"), y = 35.5, label = "iPhone 6", size = 3, vjust = -1, color = "blue") +
+  annotate("text", x = as.Date("2016-09-16"), y = 36, label = "iPhone 7", size = 3, vjust = -1, color = "blue") +
+  annotate("text", x = as.Date("2019-09-20"), y = 37, label = "iPhone 11", size = 3, vjust = -1, color = "blue") + 
+  annotate("text", x = as.Date("2020-10-23"), y = 39.3, label = "iPhone 12", size = 3, vjust = -1, color = "blue") + 
+    geom_vline(xintercept = as.Date("2012-09-21"), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = as.Date("2014-09-20"), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = as.Date("2016-09-16"), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = as.Date("2019-09-20"), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = as.Date("2020-10-23"), linetype = "dashed", color = "blue")
+```
+
+## Initial Observations
+
+At first glance we can see that connections are steadily increasing and specifically there was a large jump in 2020-2021. We also see that Revenue goes through many valleys and peaks, yet the floor and ceiling are continuously slightly raised each revenue cycle. This is where we want to evaluate the impact of iPhone R&D on these revenue trends.
+
+# Forecasting Methodology
+
+## Process Overview
+
+For forecasting Verizon’s revenue, the team opted to use ARIMA (AutoRegressive Integrated Moving Average) as the primary model. ARIMA is well-suited for time series forecasting, particularly when the data exhibits trends and seasonality. We selected ARIMA because of its ability to account for autocorrelation in revenue data, which tends to follow a cyclical pattern with peaks and valleys, often linked to external events such as iPhone releases. \## Model Selection (ARIMA)
+
+```{r}
+# Fit the model with sub_share
+verizon_ts %>% 
+  model(TREND = ARIMA(revenue ~ trend()), CTREND = ARIMA(revenue ~  sub_share)) -> fit
+fit %>% accuracy()
+
+# Create scenarios with different sub_share values
+sub_rev <- scenarios(
+  "20% (Low) Subscriber Share" = new_data(verizon_ts, 10) |>
+    mutate(sub_share = 20),
+  "35% (Average) Subscriber Share" = new_data(verizon_ts, 10) |>
+    mutate(sub_share = 35),
+  "50% (High) Subscriber Share" = new_data(verizon_ts, 10) |>
+    mutate(sub_share = 50),
+  names_to = "Scenario")
+
+fore <- forecast(fit, sub_rev)
+
+# Plot the forecast with different sub_share scenarios
+fore %>% autoplot(level = NULL, size = 0.6) +
+  autolayer(verizon_ts, revenue) +  
+  ylim(25, 40) + xlab("2010-2023") + ylab("Revenue (in Billions)") + 
+  theme_classic() + ggtitle("2025 Predicted Revenue with Variable Subscriber Share")
+```
+
+# Results and Business Impact
+
+## Forecasting Results
+
+These forecasts impact on the future of Verizon as they effectively display the slow revenue climb the company experiences. It is important for the company's future to understand the reason for the dip in revenue following a spike in which it will eventually return to higher revenue levels. 
+
+## Implications 
+
+The best-case scenario would be for Verizon to address the valleys that occur and mitigate the loss in the revenue as much as possible. Vice Versa, if the company becomes too relaxed when experiencing lows in revenue, they could lose more than expected and suffer serious damage to the overall stability of the company.

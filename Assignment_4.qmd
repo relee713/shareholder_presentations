@@ -1,0 +1,142 @@
+---
+title: "Assignment IV"
+author: "Lee, Carmichael, Schuma, and Ndur"
+format: html
+editor: visual
+---
+
+```{r, echo = FALSE}
+library(dplyr)
+library(ggplot2)
+library(triangle)
+```
+
+# Alaska Airlines
+
+## Business Problem Summary
+Alaska Airlines is hiring us to figure out how many seats to overbook in order to minimize the airlines operating cost. The cost of an unused seat is $300, while the cost of overbooked seat is 600$.​
+
+## Recomendation
+Based off of our calculations, 18 overbooked seats would give the company the lowest expected operating cost of $1633.45
+
+## Simulation Distribution
+
+```{r}
+overbooks <- c(10:30)
+mean_costs <- c()
+
+#Run 10,000 simulations of a normal distribution for predicted no-show passengers (rounded down, since there cannot be partial seats)
+alaska_simulation <- rnorm(10000, 20, 5)
+for(seat in 10:30) {
+  costs <- c()
+  final_seats <- alaska_simulation - seat
+  for (final_seat in final_seats) {
+    if (final_seat == 0) {costs <- append(costs, 0)}
+    else if (final_seat > 0) {costs <- append(costs, final_seat * 300)}
+    else if (final_seat < 0) {costs <- append(costs, final_seat * -600)}}
+  mean_costs <- append(mean_costs, mean(costs))
+  }
+alaska <- data.frame(overbooks, mean_costs)
+print(alaska)
+```
+
+Let's find out minimum cost and associated seat number:
+
+```{r, echo=FALSE}
+alaska_min <- alaska[order(alaska$mean_costs), ][1, ]
+print(alaska_min)
+```
+
+```{r, echo = TRUE}
+ggplot(alaska, aes(overbooks, mean_costs)) + geom_line(color = "blue", size = 0.9) + ggtitle("Expected Cost per Overbooked Seat") +
+  xlab("Overbooked Seats") + 
+  ylab("Expected Cost in USD") + 
+  theme_classic() + 
+  geom_text(aes(alaska_min$overbooks, alaska_min$mean_costs), label = paste("Min Cost: $", 1633.454, "\nOverbooked Seats:", 18), vjust = -1) + 
+  geom_point(aes(alaska_min$overbooks, alaska_min$mean_costs), color = "red")
+```
+
+# Bronco Wine
+
+## Business Problem Summary
+Bronco Wine Company is hiring us to determine the optimal number of bottles to produce to maximize the companies expect profit based on their expected statistics.
+
+## Recomendation
+Based on the simulation results, producing 1,500 bottles of wine yields an expected profit of $46,996, which is likely a favorable balance between demand, production costs, and potential revenue. This production level helps manage the risk of unsold bottles while still capturing sufficient demand to optimize profit.
+## Simulation Distribution
+
+```{r}
+#Run our two simulations
+ bronco_demand <- rtriangle(10000, a = 500, b = 2500, c = 1500)
+bronco_actual_production <- rbeta(10000, 2, 5)*3000
+#Sequence the production targets
+bronco_production <- seq(1000, 3000, by = 500)
+bronco_profits <- c()
+
+for (bottles_produced in bronco_production){
+  bottle <- c()
+  costs <- bottles_produced*15 + 10000
+  profit <- c()
+  for (i in 1:10000){
+    actual <- bronco_actual_production[i]
+    if (bottles_produced <= actual){bottle <- append(bottle, bottles_produced)}
+    else {bottle <- append(bottle, actual)}}
+  
+  for (i in 1:10000){
+    product <- bottle[i]
+    demand <- bronco_demand[i]
+    leftover_bottle <- min(1000, product - demand)
+    if (product <= demand){
+      profit <- append(profit, product*100)}
+    else if (product > demand){
+      profit <- append(profit, demand*100 + leftover_bottle*30)}}
+
+  mean_profit <- mean(profit - costs)
+  bronco_profits <- append(bronco_profits, mean_profit)
+  
+  if (bottles_produced == 1500){
+    print(paste("Production target:", bottles_produced, "Mean Profit:", mean_profit))
+    profit_summary <- summary(profit - costs)
+    print(profit_summary)}}
+
+print(bronco_profits)
+
+```
+
+# Bitcoin
+
+## Business Problem Summary
+Brownian motion is a mathematical model used to describe random motion, often applied in finance to simulate stock price movements. In particular, the returns of a stock are described by the following equation:
+$$\text{returns} = \left( \mu - 0.5 \times \sigma^2 \right) \times dt + \sigma \times \sqrt{dt} \times \epsilon$$
+## Recomendation
+Based on the simulation of Bitcoin’s price over the next year, it is recommended that investors prepare for varying outcomes driven by market volatility. The bear case (25th percentile) projects a Bitcoin price of $13,861.98, indicating potential downside risk. The base case (50th percentile) shows a median price of $28,272.00, reflecting moderate growth aligned with the expected annual return. The bull case (75th percentile) suggests a more optimistic outcome, with Bitcoin potentially reaching $53,702.68. Investors should consider these projections when making decisions and employ a strategy that balances potential returns with the inherent risks of the cryptocurrency market.
+
+## Simulation Distribution
+
+```{r}
+set.seed(150)
+mu <- 0.4
+sigma <- 1
+dt <- 1/365
+
+#Make empty matrices
+returns <- matrix(nrow = 1000, ncol = 365)
+prices <- matrix(nrow = 1000, ncol = 365)
+  prices[ , 1] <- 50000
+
+#Simulate 1000 potential returns per day
+for (i in 1:365){
+  ep <- rnorm(1000)
+  returns[ , i] <- (mu - 0.5 * (sigma^2)) * dt + sigma * sqrt(dt) * ep + 1}
+
+#Calculate the compounding interest for each simulation
+for (s in 1:1000){
+  for (i in 2:365){
+    prices[s, i] <- prices[s, i-1]*(returns[s, i-1])}}
+  
+#Find the data on each simulation
+
+btc_365 <- prices[ , 365]
+quantile(btc_365)
+mean(btc_365)
+```
