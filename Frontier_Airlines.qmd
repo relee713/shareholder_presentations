@@ -1,15 +1,10 @@
 ---
-title: "Group 1"
+title: "Frontier Airlines Presentation"
 author: "Rachael Lee, Malachi Ndur, Mollie Schuma, and Lucas Carmichael"
 date: "9/23/2024"
 format: html
 editor: visual
 ---
-
-# Team Photo!
-
-![Figure 1: Team #1 is the very best team](team_one_photo.png)
-
 # Problem Description:
 
 Frontier Airlines is weighing purchasing a new airplane from an aircraft manufacturer. The manufacturer offers the airplane for 50 million. The airline estimates that, if the airplane is purchased, it could generate an additional revenue of 120 million over its operational lifetime. However, this is contingent on the condition that the airline industry remains stable and demand for flights remains high, which the airline estimates have a 70% probability of occurring.
